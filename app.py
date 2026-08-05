@@ -22,7 +22,7 @@ def get_embedder():
     return SentenceTransformer("BAAI/bge-m3")
 
 
-@st.cache_resource
+@st.cache_resource(ttl=300)
 def get_db_connection():
     return mysql.connector.connect(
         host=os.getenv("TIDB_HOST"),
@@ -40,6 +40,13 @@ def search_document(database, embedder, query, k_top=10):
     results = []
     query_embedding_list = embedder.encode(query).tolist()
     query_embedding_str = json.dumps(query_embedding_list)
+
+    # Ping the database to ensure connection is alive, reconnect if necessary
+    try:
+        database.ping(reconnect=True, attempts=3, delay=1)
+    except Exception as e:
+        st.error(f"Failed to reconnect to database: {e}")
+        return []
 
     curr = database.cursor()
     sql_query = f"""
