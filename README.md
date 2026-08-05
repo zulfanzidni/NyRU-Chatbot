@@ -2,7 +2,7 @@
 
 A Retrieval-Augmented Generation (RAG) chatbot designed for **NYRU COFFEE & JUICE**, built using Streamlit, the Gemini API, and a TiDB Vector Database.
 
-![NYRU Cafe Chatbot Screenshot](asset/ss.jpg)
+![NYRU Cafe Chatbot Screenshot](https://github.com/zulfanzidni/NyRU-Chatbot/blob/main/assets/ss.jpg)
 
 ## Features
 - **Interactive Chat Interface**
