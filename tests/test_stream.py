@@ -60,7 +60,7 @@ def test_get_openai_client_success_explicit(mock_openai_cls):
         api_key="sk-test-key", base_url="https://kenari.id/v1"
     )
     mock_openai_cls.assert_called_once_with(
-        api_key="sk-test-key", base_url="https://kenari.id/v1"
+        api_key="sk-test-key", base_url="https://kenari.id/v1", timeout=30.0
     )
     assert client == mock_openai_cls.return_value
 
@@ -72,6 +72,18 @@ def test_get_openai_client_fallback_to_config(mock_openai_cls, monkeypatch):
 
     client = get_openai_client()
     mock_openai_cls.assert_called_once_with(
-        api_key="sk-env-key", base_url="https://api.example.com/v1"
+        api_key="sk-env-key", base_url="https://api.example.com/v1", timeout=30.0
     )
     assert client == mock_openai_cls.return_value
+
+
+@patch("rag.OpenAI")
+def test_get_openai_client_custom_timeout(mock_openai_cls):
+    client = get_openai_client(
+        api_key="sk-test-key", base_url="https://kenari.id/v1", timeout=15.0
+    )
+    mock_openai_cls.assert_called_once_with(
+        api_key="sk-test-key", base_url="https://kenari.id/v1", timeout=15.0
+    )
+    assert client == mock_openai_cls.return_value
+

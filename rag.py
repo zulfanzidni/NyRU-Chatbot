@@ -17,7 +17,7 @@ SYSTEM_PROMPT_TEMPLATE = """Anda adalah asisten virtual ramah untuk NYRU COFFEE 
 Jawab pertanyaan pelanggan secara ramah, jelas, dan akurat berdasarkan Konteks Informasi di bawah ini.
 Jika jawaban tidak ditemukan pada konteks, katakan dengan sopan bahwa Anda tidak mengetahui informasinya atau sarankan untuk menghubungi staf/WhatsApp kafe.
 
-Konteks:
+Konteks Informasi:
 {context}
 """
 
@@ -26,7 +26,7 @@ def build_chat_messages(
     context_docs: Optional[List[str]],
     query: str,
     history: Optional[List[Dict[str, Any]]] = None,
-    max_history_turns: int = 5,
+    max_history_turns: int = 6,
 ) -> List[Dict[str, Any]]:
     """Build OpenAI-compatible chat messages with persona, context, and sliding history window.
 
@@ -115,12 +115,14 @@ def search_document(
 def get_openai_client(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
+    timeout: float = 30.0,
 ) -> OpenAI:
     """Initialize and return an OpenAI client instance.
 
     Args:
         api_key: OpenAI API key. If omitted or None, falls back to config.
         base_url: OpenAI base URL. If omitted or None, falls back to config.
+        timeout: Request timeout in seconds. Defaults to 30.0.
 
     Returns:
         OpenAI: Configured OpenAI client.
@@ -138,7 +140,7 @@ def get_openai_client(
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not configured.")
 
-    return OpenAI(api_key=api_key, base_url=base_url)
+    return OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
 
 
 def stream_chat_response(

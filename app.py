@@ -89,9 +89,14 @@ if prompt := st.chat_input("What would you like to know?"):
 
     # Generate and display assistant response via streaming
     with st.chat_message("assistant"):
-        response = st.write_stream(
-            stream_chat_response(client, config["model"], messages)
-        )
+        try:
+            response = st.write_stream(
+                stream_chat_response(client, config["model"], messages)
+            )
+            if response:
+                st.session_state.messages.append({"role": "assistant", "content": response})
+        except Exception as e:
+            st.error(f"Gagal menghubungi layanan AI: {e}")
+            if st.session_state.messages and st.session_state.messages[-1].get("role") == "user":
+                st.session_state.messages.pop()
 
-    # Add assistant response to chat history
-    st.session_state.messages.append({"role": "assistant", "content": response})

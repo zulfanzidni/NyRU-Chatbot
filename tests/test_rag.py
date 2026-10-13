@@ -54,7 +54,7 @@ def test_build_chat_messages_empty_context():
     messages = build_chat_messages([], "Apa menu favorit?")
     assert len(messages) == 2
     assert messages[0]["role"] == "system"
-    assert "Konteks:" in messages[0]["content"]
+    assert "Konteks Informasi:" in messages[0]["content"]
 
 
 def test_build_chat_messages_zero_history_turns():
@@ -68,3 +68,18 @@ def test_build_chat_messages_zero_history_turns():
     assert len(messages) == 2
     assert messages[0]["role"] == "system"
     assert messages[1]["content"] == "Ada promo?"
+
+
+def test_build_chat_messages_default_max_history_turns_is_six():
+    history = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"msg {i}"}
+        for i in range(10)
+    ]
+    messages = build_chat_messages([], "query", history=history)
+    # Default is 6 turns: 1 system + 6 history + 1 user query = 8 messages
+    assert len(messages) == 8
+    assert messages[0]["role"] == "system"
+    assert messages[1]["content"] == "msg 4"
+    assert messages[6]["content"] == "msg 9"
+    assert messages[7]["content"] == "query"
+

@@ -104,3 +104,22 @@ def test_full_rag_pipeline_flow():
     full_response = "".join(chunks)
 
     assert full_response == "Harga kopi susu adalah Rp 18.000."
+
+
+def test_app_ast_has_stream_error_handling():
+    """Verify that app.py wraps stream_chat_response in a try-except block and handles errors."""
+    app_path = Path(__file__).resolve().parent.parent / "app.py"
+    source = app_path.read_text(encoding="utf-8")
+    assert "Gagal menghubungi layanan AI:" in source
+    assert "messages.pop()" in source
+
+    tree = ast.parse(source)
+    found_try_with_stream = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try):
+            for child in ast.walk(node):
+                if isinstance(child, ast.Call) and getattr(child.func, "id", None) == "stream_chat_response":
+                    found_try_with_stream = True
+                    break
+    assert found_try_with_stream, "stream_chat_response must be wrapped in a try block"
+
