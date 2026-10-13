@@ -5,7 +5,11 @@ Handles prompt building, context formatting, and conversation memory.
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
+
+from openai import OpenAI
+
+from config import get_llm_config
 
 logger = logging.getLogger(__name__)
 
@@ -106,4 +110,59 @@ def search_document(
             curr.close()
 
     return results
+
+
+def get_openai_client(
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+) -> OpenAI:
+    """Initialize and return an OpenAI client instance.
+
+    Args:
+        api_key: OpenAI API key. If omitted or None, falls back to config.
+        base_url: OpenAI base URL. If omitted or None, falls back to config.
+
+    Returns:
+        OpenAI: Configured OpenAI client.
+
+    Raises:
+        ValueError: If api_key is missing or empty.
+    """
+    if api_key is None or base_url is None:
+        cfg = get_llm_config()
+        if api_key is None:
+            api_key = cfg.get("api_key")
+        if base_url is None:
+            base_url = cfg.get("base_url")
+
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not configured.")
+
+    return OpenAI(api_key=api_key, base_url=base_url)
+
+
+def stream_chat_response(
+    client: OpenAI,
+    model: str,
+    messages: List[Dict[str, Any]],
+) -> Generator[str, None, None]:
+    """Stream chat response tokens from OpenAI chat completions API.
+
+    Args:
+        client: Configured OpenAI client instance.
+        model: Model identifier.
+        messages: List of message dictionaries formatted for OpenAI API.
+
+    Yields:
+        str: Text delta chunks as they arrive from the stream.
+    """
+    stream = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        stream=True,
+    )
+    for chunk in stream:
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
 
