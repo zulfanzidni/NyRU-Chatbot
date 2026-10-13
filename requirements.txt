@@ -1,6 +1,7 @@
 streamlit
-google-generativeai
+openai>=1.0.0
 sentence-transformers
 mysql-connector-python
 pandas
 python-dotenv
+pytest
