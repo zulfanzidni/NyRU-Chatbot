@@ -23,7 +23,7 @@ st.set_page_config(page_title="NYRU Cafe Chatbot", page_icon="☕")
 # Cache the database connection, embedder, and LLM client to prevent reloading on every interaction
 @st.cache_resource
 def get_embedder():
-    return SentenceTransformer("BAAI/bge-m3")
+    return SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
 
 @st.cache_resource(ttl=300)

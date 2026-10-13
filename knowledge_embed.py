@@ -8,12 +8,14 @@ from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
-# Instance untuk embedder
-embedder = SentenceTransformer("BAAI/bge-m3")
+# Instance untuk embedder ringan
+MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+print(f"Loading embedding model: {MODEL_NAME}...")
+embedder = SentenceTransformer(MODEL_NAME)
 
 db = mysql.connector.connect(
     host=os.getenv("TIDB_HOST"),
-    port=int(os.getenv("TIDB_PORT")),
+    port=int(os.getenv("TIDB_PORT") or 4000),
     user=os.getenv("TIDB_USER"),
     password=os.getenv("TIDB_PASSWORD"),
     database=os.getenv("TIDB_DATABASE"),
@@ -24,33 +26,32 @@ db = mysql.connector.connect(
 
 curr = db.cursor()
 
+# Siapkan tabel documents dengan vector(384)
+print("Recreating documents table with VECTOR(384)...")
+curr.execute("DROP TABLE IF EXISTS documents;")
+curr.execute("""
+    CREATE TABLE documents (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        text TEXT,
+        embedding VECTOR(384)
+    );
+""")
+
 # Baca data knowledge
-
 df = pd.read_csv("data_knowledge.csv")
+texts = [str(row["Context_RAG"]) for _, row in df.iterrows()]
 
-for index, row in df.iterrows():
-    text = str(row["Context_RAG"])
+print(f"Encoding {len(texts)} texts in batch...")
+embeddings = embedder.encode(texts, batch_size=32, show_progress_bar=True)
 
-    try:
-        embedding_list = embedder.encode(text).tolist()
-        embedding_str = json.dumps(embedding_list)
+data = []
+for text, emb in zip(texts, embeddings):
+    data.append((text, json.dumps(emb.tolist())))
 
-        sql_query = """
-            INSERT INTO documents (text, embedding) VALUES (%s, %s)
-        """
-
-        curr.execute(sql_query, (text, embedding_str))
-        print(f"Successfully inserted row {index} into the database.")
-
-    except (
-        mysql.connector.Error,
-        ValueError,
-        TypeError,
-        RuntimeError,
-        UnicodeEncodeError,
-    ) as e:
-        print(f"Error processing row {index}: {e}")
+sql_query = "INSERT INTO documents (text, embedding) VALUES (%s, %s)"
+curr.executemany(sql_query, data)
 
 db.commit()
 curr.close()
-print("All rows have been processed and inserted into the database.")
+db.close()
+print(f"Successfully processed and inserted {len(data)} rows into TiDB.")

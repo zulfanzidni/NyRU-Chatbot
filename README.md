@@ -14,7 +14,7 @@ A Retrieval-Augmented Generation (RAG) chatbot designed for **NYRU COFFEE & JUIC
 ## Tech Stack
 - **Frontend / UI**: Streamlit
 - **LLM**: OpenAI-compatible API (`openai`) / Kenari AI (`meta-llama/Llama-3-8b`)
-- **Embeddings**: Sentence Transformers (`BAAI/bge-m3`)
+- **Embeddings**: Sentence Transformers (`paraphrase-multilingual-MiniLM-L12-v2`)
 - **Database**: TiDB (MySQL compatible with Vector search capabilities)
 - **Data Ingestion**: Pandas
 

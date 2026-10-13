@@ -74,13 +74,6 @@ def search_document(
     except (ValueError, TypeError):
         safe_k = 10
 
-    # Ensure connection is alive; reconnect if needed
-    try:
-        database.ping(reconnect=True, attempts=3, delay=1)
-    except Exception as e:
-        logger.error("Failed to reconnect to database: %s", e)
-        return []
-
     try:
         query_embedding_list = embedder.encode(query).tolist()
         query_embedding_str = json.dumps(query_embedding_list)
@@ -95,21 +88,25 @@ def search_document(
         LIMIT %s;
     """
 
-    results: List[Dict[str, Any]] = []
-    curr = None
-    try:
+    def _execute_query() -> List[Dict[str, Any]]:
         curr = database.cursor()
-        curr.execute(sql_query, (query_embedding_str, safe_k))
-        search_results = curr.fetchall()
-        for row in search_results:
-            results.append({"text": row[0], "distance": row[1]})
-    except Exception as e:
-        logger.error("Database search error: %s", e)
-    finally:
-        if curr is not None:
+        try:
+            curr.execute(sql_query, (query_embedding_str, safe_k))
+            return [{"text": row[0], "distance": row[1]} for row in curr.fetchall()]
+        finally:
             curr.close()
 
-    return results
+    try:
+        return _execute_query()
+    except Exception as e:
+        logger.warning("Database query failed (%s), attempting reconnect...", e)
+        try:
+            if hasattr(database, "ping"):
+                database.ping(reconnect=True, attempts=2, delay=1)
+            return _execute_query()
+        except Exception as retry_e:
+            logger.error("Database search failed after reconnect: %s", retry_e)
+            return []
 
 
 def get_openai_client(
