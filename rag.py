@@ -3,7 +3,11 @@
 Handles prompt building, context formatting, and conversation memory.
 """
 
-from typing import List, Optional, Dict, Any
+import json
+import logging
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_TEMPLATE = """Anda adalah asisten virtual ramah untuk NYRU COFFEE & JUICE di Bojonegoro.
 Jawab pertanyaan pelanggan secara ramah, jelas, dan akurat berdasarkan Konteks Informasi di bawah ini.
@@ -42,3 +46,64 @@ def build_chat_messages(
     messages.append({"role": "user", "content": query})
 
     return messages
+
+
+def search_document(
+    database: Any,
+    embedder: Any,
+    query: str,
+    k_top: int = 10,
+) -> List[Dict[str, Any]]:
+    """Search for relevant documents in TiDB vector store using cosine distance.
+
+    Args:
+        database: TiDB/MySQL database connection object.
+        embedder: Embedding model instance with encode() method.
+        query: User text query.
+        k_top: Number of top documents to retrieve (minimum 1).
+
+    Returns:
+        List of dictionaries containing 'text' and 'distance'.
+    """
+    try:
+        safe_k = max(1, int(k_top))
+    except (ValueError, TypeError):
+        safe_k = 10
+
+    # Ensure connection is alive; reconnect if needed
+    try:
+        database.ping(reconnect=True, attempts=3, delay=1)
+    except Exception as e:
+        logger.error("Failed to reconnect to database: %s", e)
+        return []
+
+    try:
+        query_embedding_list = embedder.encode(query).tolist()
+        query_embedding_str = json.dumps(query_embedding_list)
+    except Exception as e:
+        logger.error("Failed to generate query embedding: %s", e)
+        return []
+
+    sql_query = """
+        SELECT text, vec_cosine_distance(embedding, %s) AS distance
+        FROM documents
+        ORDER BY distance ASC
+        LIMIT %s;
+    """
+
+    results: List[Dict[str, Any]] = []
+    curr = None
+    try:
+        curr = database.cursor()
+        curr.execute(sql_query, (query_embedding_str, safe_k))
+        search_results = curr.fetchall()
+        for row in search_results:
+            results.append({"text": row[0], "distance": row[1]})
+    except Exception as e:
+        logger.error("Database search error: %s", e)
+    finally:
+        if curr is not None:
+            curr.close()
+
+    return results
+
